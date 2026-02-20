@@ -30,6 +30,24 @@ export default function HostClient({ roomId, token }: { roomId: string; token: s
     return getPrepareRemaining(room);
   }, [room]);
 
+  const monitorEmbedUrl = useMemo(() => {
+    if (!room?.video_id) return "";
+
+    const params = new URLSearchParams({
+      start: String(room.start_s || 0),
+      autoplay: "1",
+      mute: "1",
+      playsinline: "1",
+      enablejsapi: "1",
+    });
+
+    if (room.end_s != null) {
+      params.set("end", String(room.end_s));
+    }
+
+    return `https://www.youtube.com/embed/${room.video_id}?${params.toString()}`;
+  }, [room]);
+
   const refresh = useCallback(async () => {
     const roomRes = await fetch(`/api/rooms/${roomId}`);
     if (roomRes.ok) setRoom(await roomRes.json());
@@ -135,6 +153,25 @@ export default function HostClient({ roomId, token }: { roomId: string; token: s
         <button className="rounded bg-black px-4 py-2 text-white" onClick={onDirectLoad}>
           LOAD
         </button>
+      </section>
+
+      <section className="rounded border p-4 text-sm">
+        <h2 className="mb-2 font-semibold">Host Monitor (음소거 미리보기)</h2>
+        <p className="mb-3 text-gray-600">호스트도 현재 로드된 영상을 같은 구간으로 확인할 수 있습니다.</p>
+        <div className="aspect-video w-full overflow-hidden rounded border bg-black">
+          {monitorEmbedUrl ? (
+            <iframe
+              key={`${room?.video_id}-${room?.seq}-host-monitor`}
+              title="Host Monitor"
+              src={monitorEmbedUrl}
+              className="h-full w-full"
+              allow="autoplay; encrypted-media"
+              allowFullScreen
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-white">아직 불러온 영상이 없습니다.</div>
+          )}
+        </div>
       </section>
 
       <section className="rounded border p-4 text-sm">
