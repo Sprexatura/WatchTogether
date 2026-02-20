@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getPrepareRemaining } from "@/lib/room-sync";
 
 type Room = {
   id: string;
@@ -9,6 +10,7 @@ type Room = {
   video_id: string | null;
   start_s: number;
   end_s: number | null;
+  prepare_started_at: string | null;
 };
 
 export default function HostClient({ roomId, token }: { roomId: string; token: string }) {
@@ -22,6 +24,11 @@ export default function HostClient({ roomId, token }: { roomId: string; token: s
     if (typeof window === "undefined") return `/room/${roomId}`;
     return `${window.location.origin}/room/${roomId}`;
   }, [roomId]);
+
+  const prepareRemaining = useMemo(() => {
+    if (!room) return 0;
+    return getPrepareRemaining(room);
+  }, [room]);
 
   const refresh = useCallback(async () => {
     const roomRes = await fetch(`/api/rooms/${roomId}`);
@@ -88,20 +95,33 @@ export default function HostClient({ roomId, token }: { roomId: string; token: s
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 px-6 py-8">
       <h1 className="text-xl font-bold">Host Console · {roomId}</h1>
-      <p>State: {room?.state ?? "-"}</p>
+
+      <section className="rounded border p-4 text-sm">
+        <h2 className="mb-2 font-semibold">진행 상태</h2>
+        <p>상태: {room?.state ?? "-"}</p>
+        {room?.state === "prepare" && <p>재생 준비 카운트다운: {prepareRemaining}s</p>}
+      </section>
 
       <div className="flex flex-wrap gap-3">
         <button className="rounded border px-3 py-2" onClick={() => navigator.clipboard.writeText(viewerUrl)}>
-          Copy Viewer Link
+          Viewer 링크 복사
         </button>
-        <button className="rounded border px-3 py-2" onClick={() => post("/api/host/pause", { roomId, token }, "Paused")}>PAUSE</button>
-        <button className="rounded border px-3 py-2" onClick={() => post("/api/host/stop", { roomId, token }, "Stopped")}>STOP</button>
+        <button className="rounded border px-3 py-2" onClick={() => window.open(viewerUrl, "_blank", "noopener,noreferrer")}>
+          내 화면에서 Viewer 열기(싱크 확인)
+        </button>
+        <button className="rounded border px-3 py-2" onClick={() => post("/api/host/pause", { roomId, token }, "Paused")}>
+          PAUSE
+        </button>
+        <button className="rounded border px-3 py-2" onClick={() => post("/api/host/stop", { roomId, token }, "Stopped")}>
+          STOP
+        </button>
       </div>
 
       {message && <p className="text-sm">{message}</p>}
 
       <section className="space-y-3 rounded border p-4">
         <h2 className="font-semibold">Direct Load</h2>
+        <p className="text-sm text-gray-600">호스트가 직접 링크를 넣고 LOAD 하면, Viewer는 20초 준비 후 자동 동기화 재생됩니다.</p>
         <input
           className="w-full rounded border px-3 py-2"
           placeholder="YouTube URL"
@@ -109,8 +129,8 @@ export default function HostClient({ roomId, token }: { roomId: string; token: s
           onChange={(e) => setYoutubeUrl(e.target.value)}
         />
         <div className="grid grid-cols-2 gap-3">
-          <input className="rounded border px-3 py-2" placeholder="Start (e.g. 1:23)" value={start} onChange={(e) => setStart(e.target.value)} />
-          <input className="rounded border px-3 py-2" placeholder="End (optional)" value={end} onChange={(e) => setEnd(e.target.value)} />
+          <input className="rounded border px-3 py-2" placeholder="Start (예: 1:23)" value={start} onChange={(e) => setStart(e.target.value)} />
+          <input className="rounded border px-3 py-2" placeholder="End (선택)" value={end} onChange={(e) => setEnd(e.target.value)} />
         </div>
         <button className="rounded bg-black px-4 py-2 text-white" onClick={onDirectLoad}>
           LOAD
