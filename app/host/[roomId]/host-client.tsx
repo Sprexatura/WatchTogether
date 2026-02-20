@@ -2,29 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-type Submission = {
-  id: string;
-  display_name: string | null;
-  youtube_url: string;
-  video_id: string;
-  start_s: number;
-  end_s: number | null;
-  message: string | null;
-  status: "pending" | "approved";
-};
-
 type Room = {
   id: string;
   state: "idle" | "prepare" | "playing" | "paused";
   seq: number;
-  current_submission_id: string | null;
+  video_id: string | null;
+  start_s: number;
+  end_s: number | null;
 };
 
 export default function HostClient({ roomId, token }: { roomId: string; token: string }) {
   const [room, setRoom] = useState<Room | null>(null);
-  const [pending, setPending] = useState<Submission[]>([]);
-  const [approved, setApproved] = useState<Submission[]>([]);
   const [message, setMessage] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [start, setStart] = useState("0");
+  const [end, setEnd] = useState("");
 
   const viewerUrl = useMemo(() => {
     if (typeof window === "undefined") return `/room/${roomId}`;
@@ -32,18 +24,9 @@ export default function HostClient({ roomId, token }: { roomId: string; token: s
   }, [roomId]);
 
   const refresh = useCallback(async () => {
-    const [roomRes, queueRes] = await Promise.all([
-      fetch(`/api/rooms/${roomId}`),
-      fetch(`/api/host/queue?roomId=${roomId}&token=${token}`),
-    ]);
-
+    const roomRes = await fetch(`/api/rooms/${roomId}`);
     if (roomRes.ok) setRoom(await roomRes.json());
-    if (queueRes.ok) {
-      const data = await queueRes.json();
-      setPending(data.pending || []);
-      setApproved(data.approved || []);
-    }
-  }, [roomId, token]);
+  }, [roomId]);
 
   useEffect(() => {
     if (!token) return;
@@ -79,6 +62,20 @@ export default function HostClient({ roomId, token }: { roomId: string; token: s
     void refresh();
   };
 
+  const onDirectLoad = async () => {
+    await post(
+      "/api/host/load",
+      {
+        roomId,
+        token,
+        youtubeUrl,
+        start,
+        end,
+      },
+      "Loaded (20s prepare)",
+    );
+  };
+
   if (!token) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-6 py-8">
@@ -89,11 +86,11 @@ export default function HostClient({ roomId, token }: { roomId: string; token: s
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-6 py-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 px-6 py-8">
       <h1 className="text-xl font-bold">Host Console · {roomId}</h1>
       <p>State: {room?.state ?? "-"}</p>
 
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <button className="rounded border px-3 py-2" onClick={() => navigator.clipboard.writeText(viewerUrl)}>
           Copy Viewer Link
         </button>
@@ -103,65 +100,29 @@ export default function HostClient({ roomId, token }: { roomId: string; token: s
 
       {message && <p className="text-sm">{message}</p>}
 
-      <section className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-3 rounded border p-4">
-          <h2 className="font-semibold">Pending</h2>
-          {pending.length === 0 && <p className="text-sm">No pending submissions</p>}
-          {pending.map((item) => (
-            <article key={item.id} className="rounded border p-3 text-sm">
-              <p>
-                <strong>{item.display_name || "Anonymous"}</strong>
-              </p>
-              <p>{item.youtube_url}</p>
-              <p>
-                {item.start_s}s ~ {item.end_s ?? "?"}s
-              </p>
-              <div className="mt-2 flex gap-2">
-                <button
-                  className="rounded bg-black px-3 py-1 text-white"
-                  onClick={() =>
-                    post(`/api/host/submissions/${item.id}/approve`, { roomId, token }, "Approved")
-                  }
-                >
-                  Approve
-                </button>
-                <button
-                  className="rounded border px-3 py-1"
-                  onClick={() =>
-                    post(`/api/host/submissions/${item.id}/reject`, { roomId, token }, "Rejected")
-                  }
-                >
-                  Reject
-                </button>
-              </div>
-            </article>
-          ))}
+      <section className="space-y-3 rounded border p-4">
+        <h2 className="font-semibold">Direct Load</h2>
+        <input
+          className="w-full rounded border px-3 py-2"
+          placeholder="YouTube URL"
+          value={youtubeUrl}
+          onChange={(e) => setYoutubeUrl(e.target.value)}
+        />
+        <div className="grid grid-cols-2 gap-3">
+          <input className="rounded border px-3 py-2" placeholder="Start (e.g. 1:23)" value={start} onChange={(e) => setStart(e.target.value)} />
+          <input className="rounded border px-3 py-2" placeholder="End (optional)" value={end} onChange={(e) => setEnd(e.target.value)} />
         </div>
+        <button className="rounded bg-black px-4 py-2 text-white" onClick={onDirectLoad}>
+          LOAD
+        </button>
+      </section>
 
-        <div className="space-y-3 rounded border p-4">
-          <h2 className="font-semibold">Approved</h2>
-          {approved.length === 0 && <p className="text-sm">No approved submissions</p>}
-          {approved.map((item) => (
-            <article key={item.id} className="rounded border p-3 text-sm">
-              <p>
-                <strong>{item.display_name || "Anonymous"}</strong>
-              </p>
-              <p>{item.youtube_url}</p>
-              <button
-                className="mt-2 rounded bg-black px-3 py-1 text-white"
-                onClick={() =>
-                  post(
-                    "/api/host/load",
-                    { roomId, token, submissionId: item.id },
-                    "Loaded (20s prepare)",
-                  )
-                }
-              >
-                LOAD
-              </button>
-            </article>
-          ))}
-        </div>
+      <section className="rounded border p-4 text-sm">
+        <h2 className="mb-2 font-semibold">Current Clip</h2>
+        <p>video_id: {room?.video_id ?? "-"}</p>
+        <p>
+          start/end: {room?.start_s ?? 0}s ~ {room?.end_s ?? "?"}s
+        </p>
       </section>
     </main>
   );
