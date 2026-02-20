@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WatchTogether MVP
 
-## Getting Started
+AGENTS.md 기반 Sidecar YouTube Donation MVP 초기 세팅입니다.
 
-First, run the development server:
+## Stack
+
+- Next.js (App Router)
+- TypeScript
+- TailwindCSS
+- Supabase
+
+## 1) 설치
+
+```bash
+npm install
+```
+
+## 2) 환경변수
+
+`.env.example`를 복사해 `.env.local` 생성:
+
+```bash
+cp .env.example .env.local
+```
+
+필수 값:
+
+- `NEXT_PUBLIC_APP_URL`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+## 3) DB 스키마 적용
+
+Supabase SQL editor에서 `supabase/schema.sql` 실행.
+
+## 4) 실행
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 구현된 라우트
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `POST /api/rooms/create`
+- `GET /api/rooms/[roomId]`
+- `POST /api/submissions`
+- `POST /api/host/submissions/[id]/approve`
+- `POST /api/host/submissions/[id]/reject`
+- `POST /api/host/load`
+- `POST /api/host/pause`
+- `POST /api/host/stop`
+- `GET /api/host/queue`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 페이지
 
-## Learn More
+- `/` Create Room
+- `/room/[roomId]` Viewer sidecar
+- `/host/[roomId]?token=...` Host console
 
-To learn more about Next.js, take a look at the following resources:
+## 참고
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+현재는 polling(1초) 중심의 기본 동작입니다. Realtime 구독/YouTube IFrame Player 정밀 드리프트 보정은 다음 단계에서 고도화하면 됩니다.
