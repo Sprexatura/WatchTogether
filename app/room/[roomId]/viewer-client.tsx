@@ -16,7 +16,6 @@ type RoomState = {
 export default function ViewerClient({ roomId }: { roomId: string }) {
   const [room, setRoom] = useState<RoomState | null>(null);
   const [enabled, setEnabled] = useState(false);
-  const [muted, setMuted] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -47,13 +46,17 @@ export default function ViewerClient({ roomId }: { roomId: string }) {
     const params = new URLSearchParams({
       start: String(room.start_s || 0),
       autoplay: enabled ? "1" : "0",
-      mute: muted ? "1" : "0",
+      mute: "0",
       playsinline: "1",
       enablejsapi: "1",
     });
 
+    if (room.end_s != null) {
+      params.set("end", String(room.end_s));
+    }
+
     return `https://www.youtube.com/embed/${room.video_id}?${params.toString()}`;
-  }, [room, enabled, muted]);
+  }, [room, enabled]);
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-6 py-8">
@@ -66,17 +69,6 @@ export default function ViewerClient({ roomId }: { roomId: string }) {
           </p>
           <button className="rounded bg-black px-4 py-3 text-white" onClick={() => setEnabled(true)}>
             Enable Playback
-          </button>
-        </section>
-      )}
-
-      {enabled && muted && (
-        <section className="rounded border bg-blue-50 p-4">
-          <p className="mb-3 text-sm">
-            2) 소리를 들으려면 <strong>Unmute</strong>를 누르세요. (안 눌러도 영상은 재생됨)
-          </p>
-          <button className="w-fit rounded border px-3 py-2" onClick={() => setMuted(false)}>
-            Unmute
           </button>
         </section>
       )}
@@ -96,7 +88,7 @@ export default function ViewerClient({ roomId }: { roomId: string }) {
       <div className="aspect-video w-full overflow-hidden rounded border bg-black">
         {embedUrl ? (
           <iframe
-            key={`${room?.video_id}-${room?.seq}-${enabled}-${muted}`}
+            key={`${room?.video_id}-${room?.seq}-${enabled}`}
             title="YouTube Sidecar"
             src={embedUrl}
             className="h-full w-full"
